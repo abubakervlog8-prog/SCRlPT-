@@ -1,0 +1,242 @@
+-- -- Upgraded Drag-and-Drop Cyber Shuffle Bypass Engine --
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
+local GameHandShake = Remotes and Remotes:WaitForChild("GameHandShake", 10)
+
+if not GameHandShake then 
+    warn("⚠️ Critical Game Remotes Not Found!") 
+    return 
+end
+
+-- Clear old interface instances safely
+if CoreGui:FindFirstChild("DirectEggBypassUI") then
+    CoreGui.DirectEggBypassUI:Destroy()
+end
+
+-- Main Canvas Hook
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DirectEggBypassUI"
+screenGui.ResetOnSpawn = false
+pcall(function() screenGui.Parent = CoreGui end)
+
+-- Core Container
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 280, 0, 130)
+mainFrame.Position = UDim2.new(0.5, -140, 0.25, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+
+-- Smooth Dragging Mechanical System
+local dragging, dragInput, dragStart, startPos
+local function update(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then update(input) end
+end)
+
+-- Animated Neon RGB Frame Outline
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Thickness = 2
+uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+uiStroke.Parent = mainFrame
+
+local rgbConnection
+rgbConnection = RunService and RunService.RenderStepped:Connect(function()
+    if uiStroke and uiStroke.Parent then
+        local hue = (tick() % 4) / 4
+        uiStroke.Color = Color3.fromHSV(hue, 0.85, 1)
+    else
+        if rgbConnection then rgbConnection:Disconnect() end
+    end
+end) or coroutine.wrap(function()
+    while mainFrame and uiStroke do
+        for i = 0, 1, 0.005 do
+            if not uiStroke then break end
+            uiStroke.Color = Color3.fromHSV(i, 0.85, 1)
+            task.wait(0.02)
+        end
+    end
+end)()
+
+-- Header Layout
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -60, 0, 35)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.Text = "⚡ CYBER SHUFFLE ENGINE"
+title.TextColor3 = Color3.fromRGB(0, 255, 180)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 11
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.BackgroundTransparency = 1
+title.Parent = mainFrame
+
+-- Action Button Builder Utility
+local function createButton(text, color, xOffset, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 22, 0, 22)
+    btn.Position = UDim2.new(1, xOffset, 0, 7)
+    btn.Text = text
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 11
+    btn.TextColor3 = color
+    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    btn.Parent = mainFrame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+-- Completely closes out the interface and stops active processing streams
+local connection
+local function selfDestruct()
+    if connection then connection:Disconnect() end
+    if rgbConnection and typeof(rgbConnection) == "RBXScriptConnection" then rgbConnection:Disconnect() end
+    pcall(function()
+        local base = workspace:FindFirstChild("Base")
+        if base then
+            for _, c in ipairs(base:GetDescendants()) do
+                if c.Name == "BypassTracker" then c:Destroy() end
+            end
+        end
+    end)
+    screenGui:Destroy()
+end
+
+-- Toggle Visibility Frame Action
+local frameVisible = true
+local function toggleUI()
+    frameVisible = not frameVisible
+    mainFrame.BackgroundTransparency = frameVisible and 0 or 1
+    uiStroke.Enabled = frameVisible
+    for _, child in ipairs(mainFrame:GetChildren()) do
+        if child:IsA("TextLabel") or (child:IsA("TextButton") and child.Text ~= "👁️") then
+            child.Visible = frameVisible
+        end
+    end
+end
+
+-- Dynamic Action Control Mounts
+createButton("❌", Color3.fromRGB(255, 80, 80), -28, selfDestruct)
+local hideBtn = createButton("👁️", Color3.fromRGB(200, 200, 220), -55, toggleUI)
+hideBtn.Size = UDim2.new(0, 24, 0, 22)
+
+-- Global Hotkey Integration (Press "RightControl" to instantly minimize/unminimize)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
+        toggleUI()
+    end
+end)
+
+local logLabel = Instance.new("TextLabel")
+logLabel.Size = UDim2.new(1, -20, 0, 70)
+logLabel.Position = UDim2.new(0, 10, 0, 45)
+logLabel.Text = "📡 Syncing active connection matrix..."
+logLabel.TextColor3 = Color3.fromRGB(180, 190, 210)
+logLabel.Font = Enum.Font.GothamMedium
+logLabel.TextSize = 11
+logLabel.TextWrapped = true
+logLabel.BackgroundTransparency = 1
+logLabel.Parent = mainFrame
+
+-- Algorithms System
+local function parseSequencePath(sequenceArray)
+    local position = 2 
+    for _, moveName in ipairs(sequenceArray) do
+        if moveName == "Shuffle1" or moveName == "Shuffle2" then
+            if position == 2 then position = 3 elseif position == 3 then position = 2 end
+        elseif moveName == "Shuffle3" or moveName == "Shuffle4" then
+            if position == 1 then position = 2 elseif position == 2 then position = 1 end
+        elseif moveName == "Shuffle5" or moveName == "Shuffle6" then
+            if position == 1 then position = 3 elseif position == 3 then position = 1 end
+        end
+    end
+    return position
+end
+
+local function flushTrackers()
+    pcall(function()
+        local base = workspace:FindFirstChild("Base")
+        if base then
+            for _, child in ipairs(base:GetDescendants()) do
+                if child.Name == "BypassTracker" then child:Destroy() end
+            end
+        end
+    end)
+end
+
+-- Network Execution Pipeline
+connection = GameHandShake.OnClientEvent:Connect(function(action, data)
+    if action == "ShuffleSequence" and type(data) == "table" and type(data.Sequence) == "table" then
+        flushTrackers()
+        if frameVisible then logLabel.Text = "⚡ Sequence Captured! Calculating position matrices..." end
+        
+        local winningCupIndex = parseSequencePath(data.Sequence)
+        local cupNames = {"LEFT CUP (1)", "MIDDLE CUP (2)", "RIGHT CUP (3)"}
+        
+        if frameVisible then logLabel.Text = "🎯 TARGET LOCATED:\n▶ " .. tostring(cupNames[winningCupIndex]) .. " ◀" end
+        
+        pcall(function()
+            local base = workspace:FindFirstChild("Base")
+            for _, baseChild in ipairs(base:GetChildren()) do
+                if baseChild:GetAttribute("Owner") == LocalPlayer.Name then
+                    local dealer = baseChild:FindFirstChild("DealerContainer") and baseChild.DealerContainer:FindFirstChild("Lucky Dealer")
+                    local skin = dealer and dealer:FindFirstChild("Cups") and dealer.Cups:FindFirstChild("SKIN")
+                    local targetCup = skin and skin:FindFirstChild("Cup" .. tostring(winningCupIndex))
+                    
+                    if targetCup then
+                        local hl = Instance.new("Highlight")
+                        hl.Name = "BypassTracker"
+                        hl.FillColor = Color3.fromRGB(0, 255, 180)
+                        hl.FillTransparency = 0.25
+                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                        hl.Parent = targetCup
+
+                        task.spawn(function()
+                            if frameVisible then logLabel.Text = "🤖 Auto-clicking target cup instantly..." end
+                            local clickDetector = targetCup:FindFirstChildOfClass("ClickDetector") or targetCup:FindFirstChild("MeshPart") and targetCup.MeshPart:FindFirstChildOfClass("ClickDetector")
+                            if clickDetector then
+                                fireclickdetector(clickDetector)
+                            end
+                        end)
+                    end
+                end
+            end
+        end)
+        
+    elseif action == "RevealResult" then
+        task.delay(1.5, function()
+            flushTrackers()
+            if frameVisible then logLabel.Text = "📡 Ready. Awaiting next shuffle sequence packet..." end
+        end)
+    end
+end)
+
+logLabel.Text = "📡 System Ready.\n[RightControl] to Hide/Unhide Panel"
